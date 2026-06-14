@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ORBITAL GUARDIAN AI — Sovereign Space Command System</title>
+
+  <!-- Cesium Ion / CesiumJS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.120/Build/Cesium/Widgets/widgets.css">
+
+  <link rel="stylesheet" href="css/saffron-cosmos.css">
+  <style>
+    /* Inline critical: cesium container + loading */
+    #cesiumContainer { width:100%; height:100%; position:absolute; inset:0; }
+    .cesium-viewer-bottom { display:none !important; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════
+     SOVEREIGN ACCESS GATE — mandatory auth, CAPTCHA + OTP
+     ═══════════════════════════════════════════════════════════ -->
+<div id="auth-gate">
+  <!-- Left: astronaut hero -->
+  <div id="auth-hero">
+    <img id="astro-img" src="" alt="Astronaut">
+    <div id="hero-glass">
+      <div class="gtitle">SOVEREIGN ACCESS DESK</div>
+      <div class="grow"><span>TRACKED ASSETS</span><b>70+</b></div>
+      <div class="grow"><span>DEBRIS OBJECTS</span><b>27,000+</b></div>
+      <div class="grow"><span>CONJUNCTION WINDOW</span><b>12 h</b></div>
+      <div class="grow"><span>PROBABILITY MODEL</span><b>Foster-1992</b></div>
+      <div class="grow"><span>ML RISK ENGINE</span><b>ACTIVE</b></div>
+    </div>
+  </div>
+
+  <!-- Right: form panel -->
+  <div id="auth-panel">
+    <div class="brandmark">ORBITAL <span>GUARDIAN</span></div>
+    <div class="brandsub">SOVEREIGN SPACE COMMAND SYSTEM</div>
+
+    <div class="auth-tabs">
+      <div id="tab-login" class="auth-tab active">LOGIN</div>
+      <div id="tab-signup" class="auth-tab">SIGN UP</div>
+    </div>
+
+    <div id="auth-form-step">
+      <div class="auth-field">
+        <label>OPERATOR EMAIL</label>
+        <input id="auth-email" type="email" autocomplete="email" placeholder="operator@agency.gov">
+      </div>
+      <div class="auth-field">
+        <label>PASSCODE</label>
+        <input id="auth-pass" type="password" autocomplete="current-password" placeholder="Min 4 characters">
+      </div>
+
+      <div id="signup-extra" style="display:none">
+        <div class="auth-field">
+          <label>CALLSIGN (DISPLAY NAME)</label>
+          <input id="auth-callsign" type="text" placeholder="e.g. VIKRAM-1">
+        </div>
+        <div class="auth-field">
+          <label>AGENCY DESK</label>
+          <select id="auth-agency">
+            <option value="ISRO ISTRAC">ISRO ISTRAC</option>
+            <option value="JAXA SSA">JAXA SSA</option>
+            <option value="US SPACE COMMAND">US SPACE COMMAND</option>
+            <option value="ESA SST">ESA SST</option>
+            <option value="OTHER">OTHER</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- CAPTCHA -->
+      <div class="auth-field">
+        <label>HUMAN VERIFICATION — TYPE THE CODE BELOW</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <canvas id="captcha-cv" width="190" height="54"></canvas>
+          <span id="captcha-refresh" style="cursor:pointer;color:#00d4ff;font-size:18px" title="New code">↻</span>
+        </div>
+        <input id="captcha-in" type="text" maxlength="5" placeholder="5-char code" autocomplete="off" autocapitalize="characters" style="margin-top:6px;text-transform:uppercase">
+      </div>
+
+      <button id="auth-submit" class="og-btn saffron" style="width:100%;margin-top:6px;padding:13px;font-size:12px">⬢ AUTHENTICATE</button>
+      <div id="auth-msg"></div>
+    </div>
+
+    <!-- OTP step -->
+    <div id="otp-step" style="display:none">
+      <div class="auth-field">
+        <label>ONE-TIME VERIFICATION CODE</label>
+        <input id="otp-in" type="text" maxlength="6" placeholder="6-digit OTP" autocomplete="one-time-code">
+      </div>
+      <div id="otp-channel" style="font-size:10px;color:#1fb84f;letter-spacing:1px;margin-bottom:8px"></div>
+      <button id="otp-verify" class="og-btn green" style="width:100%;padding:12px;font-size:11px">✓ VERIFY OTP</button>
+      <div id="otp-msg" style="margin-top:8px;font-size:10px;letter-spacing:1px;text-align:center"></div>
+      <div id="otp-preview-wrap" style="display:none;margin-top:12px">
+        <div style="font-size:8px;letter-spacing:2px;color:#ff9933;margin-bottom:4px">SIMULATED DELIVERY PREVIEW:</div>
+        <pre id="otp-preview" style="background:#01030a;border:1px solid #16224e;border-radius:6px;padding:10px;font-size:8px;line-height:1.5;color:#9fdcff;max-height:200px;overflow:auto;white-space:pre-wrap"></pre>
+      </div>
+      <button id="otp-back" class="og-btn mini" style="margin-top:10px;width:100%">← BACK TO SIGN UP</button>
+    </div>
+
+    <div class="auth-note">
+      ⚠ MANDATORY ACCESS — every operator must authenticate with CAPTCHA + verified email.
+      Your email becomes the automated alert destination for all CRITICAL/HIGH conjunctions.
+    </div>
+
+    <!-- Access granted overlay -->
+    <div id="access-granted">
+      <div class="big">✓ ACCESS GRANTED</div>
+      <div id="ag-name" style="font-size:11px;letter-spacing:2px;color:#aeb8d8;margin-top:8px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     LOADING SCREEN
+     ═══════════════════════════════════════════════════════════ -->
+<div id="loading-screen">
+  <div id="boot-box">
+    <div id="boot-emblem">
+      <div class="ring"></div>
+    </div>
+    <div id="boot-title" style="text-align:center">ORBITAL GUARDIAN AI</div>
+    <div id="boot-sub" style="text-align:center">SOVEREIGN ORBITAL DEFENSE GRID · INITIALIZING</div>
+    <div id="boot-log"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     COMMAND CENTER — main grid layout
+     ═══════════════════════════════════════════════════════════ -->
+<div id="command-center">
+
+  <!-- ── Top Bar ────────────────────────────────────────── -->
+  <div id="topbar" class="og-panel og-rivets">
+    <div class="brand">
+      <b>ORBITAL GUARDIAN</b>
+      <span>SOVEREIGN SPACE COMMAND</span>
+    </div>
+    <div class="stats">
+      <span class="led-readout" id="tb-assets">— ASSETS</span>
+      <span class="led-readout saffron" id="tb-debris">— DEBRIS</span>
+      <span class="led-readout red" id="tb-critical">— CRITICAL</span>
+      <span class="led-readout green" id="tb-conf">—% AI CONF</span>
+    </div>
+    <div class="clockbox">
+      <div class="utc" id="tb-utc">—</div>
+      <div class="ist" id="tb-ist">—</div>
+    </div>
+    <span id="tb-src" style="font-size:8px;letter-spacing:1.5px;color:#525d83;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <!-- Profile chip -->
+    <div id="profile-chip">
+      <div id="profile-avatar">⬡</div>
+      <span id="profile-name">OPERATOR</span>
+    </div>
+  </div>
+
+  <!-- Profile dropdown (fixed positioned) -->
+  <div id="profile-menu" class="og-panel">
+    <div class="pm-head">
+      <div id="pm-callsign">⬢ —</div>
+      <div id="pm-email" style="color:#8a93b0">—</div>
+      <div id="pm-agency" style="color:#525d83">—</div>
+      <div id="pm-verified">—</div>
+    </div>
+    <div class="pm-item" id="pm-alerts">🔔 ALERT HISTORY <span id="pm-alert-count">0</span></div>
+    <div class="pm-item" id="pm-guide">🧭 REPLAY OPERATOR GUIDE</div>
+    <div class="pm-item" id="pm-settings">⚙ SETTINGS</div>
+    <div class="pm-item" id="pm-logout" style="color:#ff5544">⏻ SIGN OUT</div>
+  </div>
+
+  <!-- ── Sidebar ────────────────────────────────────────── -->
+  <div id="sidebar" class="og-panel og-rivets">
+    <div class="og-panel-title"><span class="lamp"></span> NAVIGATION <span class="tag">SIDEBAR</span></div>
+    <div class="nav-item active" data-view="dashboard">📂 DASHBOARD</div>
+    <div class="nav-item" data-view="globe">🌍 GLOBE VIEW</div>
+    <div class="nav-item" data-view="threats">⚠ THREAT INTEL</div>
+    <div class="nav-item" data-view="registry">🛰 ASSET REGISTRY</div>
+    <div class="nav-item" data-view="analytics">📊 ANALYTICS</div>
+    <div class="nav-item" data-view="docs">📖 DOCUMENTATION</div>
+    <div class="sysblock">
+      <div class="row"><span>SGP4 KERNEL</span><span style="color:#1fb84f">ACTIVE</span></div>
+      <div class="row"><span>FOSTER Pc</span><span style="color:#1fb84f">ARMED</span></div>
+      <div class="row"><span>ML RISK</span><span style="color:#1fb84f">ONLINE</span></div>
+      <div class="row"><span>ALERT ENGINE</span><span style="color:#1fb84f">ARMED</span></div>
+      <div class="row"><span>DATA INTEGRITY</span><span style="color:#00d4ff">CHECKSUM ✓</span></div>
+    </div>
+  </div>
+
+  <!-- ── Globe ──────────────────────────────────────────── -->
+  <div id="globe-wrap" class="og-panel og-rivets">
+    <div id="cesiumContainer"></div>
+    <div id="globe-hud">
+      <div>ORBITAL GUARDIAN · SOVEREIGN DEFENSE GRID</div>
+      <div id="globe-hud-time">—</div>
+    </div>
+    <div id="globe-crosshair"></div>
+    <div id="globe-fallback">
+      <div style="font-size:12px;letter-spacing:2px;color:#ff9933;text-shadow:0 0 8px rgba(255,153,51,.6)">⚡ 2-D TACTICAL MAP ACTIVE</div>
+      <div style="font-size:10px;color:#aeb8d8;line-height:1.6">The Cesium 3-D engine could not load from CDN (network may be blocking scripts). The terminal has switched to a real-time 2-D tactical map with full SGP4 physics. All other functions (scans, alerts, CDMs, analytics) work normally.</div>
+    </div>
+    <div id="globe-controls">
+      <button id="gc-india" class="og-btn mini saffron">🇮🇳 ISRO AOR</button>
+      <button id="gc-in" class="og-btn mini">🇮🇳 IN</button>
+      <button id="gc-jp" class="og-btn mini indigo">🇯🇵 JP</button>
+      <button id="gc-deb" class="og-btn mini red">☄ DEBRIS</button>
+      <button id="gc-planets" class="og-btn mini" style="opacity:.55">🪐 SKY BODIES</button>
+      <button id="gc-light" class="og-btn mini green">🌗 TERMINATOR ON</button>
+      <button id="gc-speed" class="og-btn mini">⏩ 60×</button>
+    </div>
+  </div>
+
+  <!-- ── Asset Registry ─────────────────────────────────── -->
+  <div id="assets" class="og-panel og-rivets">
+    <div class="og-panel-title"><span class="lamp saffron"></span> ASSET REGISTRY <span class="tag" id="asset-count">—</span></div>
+    <div style="display:flex;gap:4px;padding:4px 8px">
+      <button id="af-all" class="og-btn mini" style="flex:1">ALL</button>
+      <button id="af-in" class="og-btn mini saffron" style="flex:1">ISRO</button>
+      <button id="af-jp" class="og-btn mini indigo" style="flex:1">JAXA</button>
+    </div>
+    <div id="asset-list"></div>
+  </div>
+
+  <!-- ── Threat Intelligence ────────────────────────────── -->
+  <div id="threat" class="og-panel og-rivets">
+    <div class="og-panel-title"><span class="lamp red"></span> THREAT INTELLIGENCE <span class="tag">CONJUNCTION SCREENING</span></div>
+    <div style="display:flex;gap:6px;padding:6px 8px;flex-wrap:wrap">
+      <button id="btn-scan" class="og-btn saffron">⟳ RUN ORBIT SCAN</button>
+      <button id="btn-inject" class="og-btn red">☢ INJECT TRAINING THREAT</button>
+      <button id="btn-demo-attack" class="og-btn red">☄ ATTACK DRILL</button>
+    </div>
+    <div class="threat-head">
+      <span>CLASS</span><span>PRIMARY → SECONDARY</span><span>TCA</span><span>MISS DIST</span>
+      <span class="hide-sm">REL VEL</span><span class="hide-sm">Pc</span><span class="hide-sm">ORIGIN</span><span>ML RISK</span>
+    </div>
+    <div id="threat-list"></div>
+    <pre id="threat-detail" style="background:#01030a;border:1px solid #16224e;border-radius:7px;box-shadow:inset 0 3px 12px rgba(0,0,0,.9);padding:10px 12px;height:172px;overflow-y:auto;font-size:10px;line-height:1.75;color:#9fdcff;margin:6px 8px"></pre>
+  </div>
+
+  <!-- ── Response Console ───────────────────────────────── -->
+  <div id="response" class="og-panel og-rivets">
+    <div class="og-panel-title"><span class="lamp green"></span> AUTONOMOUS RESPONSE CONSOLE <span class="tag">MANEUVER + CDM + ALERTS</span></div>
+    <div class="console-grid" style="padding:8px">
+      <!-- Maneuver plan -->
+      <div>
+        <div style="font-size:9px;letter-spacing:2px;color:#ff9933;margin-bottom:6px">MANEUVER PLAN</div>
+        <div id="maneuver-data"></div>
+        <div style="margin-top:6px">
+          <div style="font-size:8px;letter-spacing:1.5px;color:#525d83;margin-bottom:2px">FUEL BUDGET</div>
+          <div id="fuel-gauge" class="og-gauge"><i style="width:0%"></i></div>
+        </div>
+      </div>
+      <!-- Actions -->
+      <div>
+        <div style="font-size:9px;letter-spacing:2px;color:#ff9933;margin-bottom:6px">ACTIONS</div>
+        <button id="btn-maneuver" class="og-btn green" style="width:100%;margin-bottom:6px">⬢ SIMULATE MANEUVER</button>
+        <button id="btn-cdm" class="og-btn" style="width:100%;margin-bottom:6px">📄 GENERATE CDM</button>
+        <button id="btn-report" class="og-btn" style="width:100%;margin-bottom:6px">📊 SITUATION REPORT</button>
+      </div>
+      <!-- Alerts -->
+      <div>
+        <div style="font-size:9px;letter-spacing:2px;color:#ff9933;margin-bottom:6px">AUTHORITY ALERTS</div>
+        <button id="btn-alert-isro" class="og-btn saffron" style="width:100%;margin-bottom:6px">🇮🇳 ALERT ISRO ISTRAC</button>
+        <button id="btn-alert-jaxa" class="og-btn indigo" style="width:100%;margin-bottom:6px">🇯🇵 ALERT JAXA SSA</button>
+        <div id="cmd-log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     ANALYTICS CORE
+     ═══════════════════════════════════════════════════════════ -->
+<section id="analytics" class="og-panel og-rivets" style="margin:8px">
+  <div class="og-panel-title"><span class="lamp"></span> ANALYTICS CORE <span class="tag">KESSLER · RISK TRENDS · VULNERABILITY</span></div>
+  <div style="padding:6px 8px">
+    <button id="btn-kessler" class="og-btn saffron mini" style="margin-bottom:8px">⟳ RE-SIMULATE KESSLER CASCADE (25 yr)</button>
+  </div>
+  <div id="analytics-grid">
+    <div><div style="font-size:8px;letter-spacing:2px;color:#525d83;margin-bottom:4px">RISK TREND · SELECTED EVENT</div><canvas id="chart-trend" class="chart"></canvas></div>
+    <div><div style="font-size:8px;letter-spacing:2px;color:#525d83;margin-bottom:4px">ORBIT CONGESTION MAP</div><canvas id="chart-congestion" class="chart"></canvas></div>
+    <div><div style="font-size:8px;letter-spacing:2px;color:#525d83;margin-bottom:4px">KESSLER CASCADE HEATMAP</div><canvas id="chart-kessler" class="chart"></canvas></div>
+    <div><div style="font-size:8px;letter-spacing:2px;color:#525d83;margin-bottom:4px">FLEET VULNERABILITY INDEX</div><canvas id="chart-vuln" class="chart"></canvas></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DEEP-SPACE READING VAULT
+     ═══════════════════════════════════════════════════════════ -->
+<section id="library" class="og-panel og-rivets" style="margin:8px">
+  <div class="og-panel-title"><span class="lamp saffron"></span> DEEP-SPACE READING VAULT <span class="tag">5 DOMAINS × 30 BOOKS = 150 TITLES</span></div>
+  <div style="padding:8px 12px">
+    <div id="lib-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+    <div id="lib-blurb" style="font-size:10px;color:#8a93b0;letter-spacing:.8px;margin-bottom:10px"></div>
+    <div id="lib-shelf"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     FAQ
+     ═══════════════════════════════════════════════════════════ -->
+<section id="faq" class="og-panel og-rivets" style="margin:8px">
+  <div class="og-panel-title"><span class="lamp"></span> FREQUENTLY ASKED QUESTIONS <span class="tag">FAQ</span></div>
+  <div id="faq-body" style="padding:8px 12px"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     DOCUMENTATION — provenance, data sources, methodology
+     ═══════════════════════════════════════════════════════════ -->
+<section id="documentation" class="og-panel og-rivets" style="margin:8px">
+  <div class="og-panel-title"><span class="lamp"></span> DOCUMENTATION &amp; PROVENANCE <span class="tag">SOURCES · METHODS · INTEGRITY</span></div>
+
+  <div style="padding:12px 16px">
+    <h3>THE SITUATION — WHY THIS TERMINAL EXISTS</h3>
+    <p>On 10 February 2009, the operational communications satellite Iridium-33 collided with the derelict Russian military satellite Cosmos-2251 at a relative velocity of 11.7 km/s, producing over 2,300 tracked fragments. On 11 January 2007, China's anti-satellite test against its own Fengyun-1C weather satellite created more than 3,500 pieces of trackable debris — the single worst contamination event in orbit history. Those fragments are still up there, crossing the paths of India's NavIC constellation and Japan's QZSS fleet every 90 minutes. This terminal exists because the sky is a shared resource under active threat, and sovereign operators need the fastest possible intelligence on what is approaching their spacecraft.</p>
+
+    <div class="doc-cols">
+      <div>
+        <h3>ORBITAL DATA SOURCES</h3>
+        <ul>
+          <li><b>CelesTrak GP API</b> — NORAD Two-Line Element sets from the 18th Space Defense Squadron. Public, updated daily. <code>celestrak.org/NORAD/elements/gp.php</code></li>
+          <li><b>ISRO mission archives</b> — Official launch vehicle, mass, site and role data for every IRNSS/NVS, Cartosat, RISAT, Oceansat, EOS and GSAT mission. <code>isro.gov.in</code></li>
+          <li><b>JAXA project pages</b> — QZSS/Michibiki specs, ALOS/Daichi roles, GOSAT/Ibuki instruments. <code>global.jaxa.jp</code>, <code>qzss.go.jp</code></li>
+          <li><b>JMA / Himawari</b> — Geostationary weather satellite specs. <code>jma.go.jp</code></li>
+          <li><b>NASA</b> — ISS orbital parameters. <code>nasa.gov</code></li>
+        </ul>
+      </div>
+      <div>
+        <h3>PHYSICS &amp; MODELS</h3>
+        <ul>
+          <li><b>SGP4/SDP4</b> — Vallado (2013), <i>Fundamentals of Astrodynamics and Applications</i>. Simplified General Perturbations propagator matching NORAD elements.</li>
+          <li><b>Foster-1992</b> — Foster &amp; Estes, NASA JSC-25898. 2-D encounter-plane collision probability.</li>
+          <li><b>ML Risk Scoring</b> — Feature-weighted heuristic (Pc, proximity, velocity × geopolitical weight). Not a trained neural network — documented openly.</li>
+          <li><b>Kessler Cascade</b> — Kessler &amp; Cour-Palais (1978) kinetic-gas model with per-shell population dynamics.</li>
+          <li><b>Clohessy–Wiltshire</b> — Along-track ΔV maneuver planning with Tsiolkovsky fuel estimation.</li>
+          <li><b>CCSDS 508.0-B-1</b> — Conjunction Data Message standard for inter-agency exchange.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>DATA INTEGRITY</h3>
+        <ul>
+          <li>Every TLE line is <b>checksum-verified</b> on load — any tampered or corrupted line is rejected and reported.</li>
+          <li>Orbital figures in the UI are <b>never</b> taken from the satellite dossier database — always computed live from TLEs via SGP4.</li>
+          <li>Facts not officially published by the operating agency are shown as "—" — never guessed or fabricated.</li>
+          <li>The satellite dossier matches by <b>official name</b> (regex), not hand-typed catalog numbers.</li>
+          <li>CelesTrak live refresh is attempted at boot; failure falls back to the embedded snapshot honestly labelled as such.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>HONEST GAPS</h3>
+        <ul>
+          <li>TLE + SGP4 accuracy is ~1–3 km — not sufficient for operational maneuver decisions.</li>
+          <li>Collision probabilities use <b>assumed</b> covariances, not radar-fitted per-object uncertainty.</li>
+          <li>Real operations require owner/operator ephemerides, legal CDM exchange (Space-Track, EU SST), and radar data — this is a screening and training layer.</li>
+          <li>The ML risk model is a weighted heuristic, not a trained neural network with validation metrics.</li>
+          <li>ISRO's IS4OM system uses classified data and dedicated radar — this terminal uses public TLEs only.</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>EXPORT &amp; CONFIGURATION</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button id="doc-export-tle" class="og-btn mini">💾 EXPORT ASSET TLEs</button>
+      <button id="doc-export-debris" class="og-btn mini">💾 EXPORT DEBRIS TLEs</button>
+      <button id="doc-show-config" class="og-btn mini">⚙ SHOW CONFIG</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════
+     MEGA FOOTER — THE GUARDIAN WALL
+     ═══════════════════════════════════════════════════════════ -->
+<footer id="mega-footer">
+  <div class="mf-top">
+    <div class="mf-cta">
+      <div class="mf-kicker">SOVEREIGN ORBITAL DEFENSE GRID</div>
+      <h2>The sky never sleeps.<br><span>Neither does the watch.</span></h2>
+      <div class="mf-contact">
+        <a href="/cdn-cgi/l/email-protection#016e7172416e73636875606d667460736568606f2f7271606264"><span class="__cf_email__" data-cfemail="1976696a59766b7b706d78757e6c786b7d707877376a69787a7c">[email&#160;protected]</span></a>
+      </div>
+    </div>
+    <nav class="mf-nav">
+      <a data-goto="command-center">Dashboard</a>
+      <a data-goto="threat">Threat Intel</a>
+      <a data-goto="assets">Asset Registry</a>
+      <a data-goto="analytics">Analytics</a>
+      <a data-goto="library">Reading Vault</a>
+      <a data-goto="faq">FAQ</a>
+      <a data-goto="documentation">Documentation</a>
+    </nav>
+  </div>
+
+  <!-- Live telemetry strip -->
+  <div class="mf-telemetry">
+    <span>● LIVE</span>
+    <span id="mft-assets">— assets</span>
+    <span id="mft-debris">— debris tracked</span>
+    <span id="mft-events">— conjunctions</span>
+    <span id="mft-utc">—Z</span>
+    <span id="mft-iss">ISS: computing…</span>
+  </div>
+
+  <!-- Guardian wordmark with orbiting satellites -->
+  <div class="mf-wordmark">
+    <svg viewBox="0 0 1200 160" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:1200px">
+      <defs>
+        <linearGradient id="mfg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#ff9933"/>
+          <stop offset="50%" stop-color="#f5f5f5"/>
+          <stop offset="100%" stop-color="#9b59ff"/>
+        </linearGradient>
+      </defs>
+      <text x="50%" y="120" text-anchor="middle" class="mf-text">GUARDIAN</text>
+      <!-- Dashed orbit ellipse -->
+      <ellipse cx="600" cy="80" rx="560" ry="50" fill="none" stroke="rgba(0,212,255,.15)" stroke-width="1" stroke-dasharray="8 6">
+        <animateTransform attributeName="transform" type="rotate" from="0 600 80" to="360 600 80" dur="30s" repeatCount="indefinite"/>
+      </ellipse>
+      <!-- Orbiting satellite 1 (saffron) -->
+      <circle r="3" fill="#ff9933">
+        <animateMotion dur="30s" repeatCount="indefinite">
+          <mpath href="#orbit1"/>
+        </animateMotion>
+      </circle>
+      <!-- Orbiting satellite 2 (indigo) -->
+      <circle r="3" fill="#9b59ff">
+        <animateMotion dur="30s" repeatCount="indefinite" begin="-15s">
+          <mpath href="#orbit1"/>
+        </animateMotion>
+      </circle>
+      <path id="orbit1" d="M 40 80 A 560 50 0 1 1 1160 80 A 560 50 0 1 1 40 80" fill="none"/>
+    </svg>
+  </div>
+
+  <div class="mf-bottom">
+    <span>© 2024–2026 Orbital Guardian AI · Sovereign Space Command · All rights reserved · Built with real NORAD TLEs, SGP4, Foster-1992, and honest engineering</span>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════
+     ALERT TOAST
+     ═══════════════════════════════════════════════════════════ -->
+<div id="alert-toast" class="og-panel"></div>
+
+<!-- ══════════════════════════════════════════════════════════
+     USER GUIDE OVERLAY
+     ═══════════════════════════════════════════════════════════ -->
+<div id="guide-veil">
+  <div id="guide-card" class="og-panel" style="padding:20px 24px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div id="guide-title" style="font-size:12px;letter-spacing:2px;color:#ff9933;text-shadow:0 0 8px rgba(255,153,51,.6)">OPERATOR FIELD GUIDE</div>
+      <span id="guide-step-tag" style="font-size:9px;color:#525d83;letter-spacing:1.5px">1/7</span>
+    </div>
+    <div id="guide-body" style="font-size:12px;line-height:1.8;color:#dfe6ff;min-height:100px"></div>
+    <div id="guide-dots" style="text-align:center;margin:14px 0"></div>
+    <div style="display:flex;gap:8px;justify-content:space-between">
+      <button id="guide-prev" class="og-btn mini">← PREV</button>
+      <button id="guide-skip" class="og-btn mini" style="color:#525d83">SKIP</button>
+      <button id="guide-next" class="og-btn mini saffron">NEXT →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL (CDM / reports)
+     ═══════════════════════════════════════════════════════════ -->
+<div id="og-modal-veil">
+  <div id="og-modal" class="og-panel" style="max-width:680px">
+    <div class="og-panel-title">
+      <span class="lamp"></span> <span id="modal-title">—</span>
+      <span class="tag" id="modal-close" style="cursor:pointer;margin-left:auto">✕ CLOSE</span>
+    </div>
+    <pre id="modal-pre"></pre>
+    <div class="btnrow">
+      <button id="modal-download" class="og-btn green mini">💾 DOWNLOAD</button>
+      <button class="og-btn mini" onclick="document.getElementById('og-modal-veil').classList.remove('open')">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     SCRIPTS — load order matters
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- Cesium Ion Engine (CDN) -->
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="https://cdn.jsdelivr.net/npm/cesium@1.120/Build/Cesium/Cesium.js"></script>
+
+<!-- Core dependencies -->
+<script src="js/satellite.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/astronaut-img.js"></script>
+<script src="js/satellite-model.js"></script>
+
+<!-- Data -->
+<script src="js/tle-data.js"></script>
+<script src="js/satmeta.js"></script>
+<script src="js/library.js"></script>
+
+<!-- Physics & Analytics -->
+<script src="js/physics.js"></script>
+<script src="js/analytics.js"></script>
+
+<!-- Globe -->
+<script src="js/globe.js"></script>
+
+<!-- ── Cesium Ion Integration ─────────────────────────── -->
+<script>
+  (function() {
+    'use strict';
+
+    /* ============================================================
+       Cesium Ion Globe Integration
+       ============================================================ */
+
+    // 1. Token — replace with your own Ion token from https://cesium.com/ion
+    //    If left empty, Cesium will run with a watermark but still function.
+    Cesium.Ion.defaultAccessToken = 'YOUR_ION_ACCESS_TOKEN';
+
+    function initIonGlobe() {
+      if (typeof Cesium === 'undefined') {
+        console.warn('[OG] Cesium library not detected. 2-D tactical fallback remains active.');
+        return;
+      }
+
+      try {
+        // World Terrain from Cesium Ion (synchronous initializer available in 1.120)
+        const terrainProvider = Cesium.createWorldTerrain({
+          requestWaterMask: true,
+          requestVertexNormals: true
+        });
+
+        // Build the viewer inside our container
+        const viewer = new Cesium.Viewer('cesiumContainer', {
+          terrainProvider: terrainProvider,
+
+          // Lighting & atmosphere
+          skyAtmosphere: new Cesium.SkyAtmosphere(),
+          sceneMode: Cesium.SceneMode.SCENE3D,
+          shouldAnimate: true,
+
+          // Disable default widgets we don't need for the command-center look
+          geocoder: false,
+          homeButton: false,
+          sceneModePicker: false,
+          navigationHelpButton: false,
+          animation: false,
+          timeline: false,
+          fullscreenButton: false,
+          baseLayerPicker: true, // keep so operators can switch to Bing/Ion imagery
+          infoBox: false,
+          selectionIndicator: false
+        });
+
+        // Hide default Cesium credit bar to keep the custom HUD clean
+        if (viewer.cesiumWidget && viewer.cesiumWidget.creditContainer) {
+          viewer.cesiumWidget.creditContainer.style.display = 'none';
+        }
+        if (viewer.bottomContainer) {
+          viewer.bottomContainer.style.display = 'none';
+        }
+
+        // Dark-space look: black starfield, reduce default lighting intensity
+        viewer.scene.skyBox.show = true;
+        viewer.scene.backgroundColor = Cesium.Color.BLACK;
+        viewer.scene.globe.enableLighting = true;
+        viewer.scene.globe.lightingFadeOutDistance = 100000;
+        viewer.scene.globe.lightingFadeInDistance = 10000000;
+
+        // Expose to the rest of the application
+        window.ogViewer = viewer;
+        window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.120/Build/Cesium/';
+
+        // Hide the 2-D fallback banner since 3-D is alive
+        const fallback = document.getElementById('globe-fallback');
+        if (fallback) fallback.style.display = 'none';
+
+        console.log('[OG] Cesium Ion 3-D globe initialized and bound to #cesiumContainer');
+      } catch (err) {
+        console.error('[OG] Cesium Ion initialization failed:', err);
+        // fallback stays visible
+      }
+    }
+
+    // Run when DOM is ready (Cesium script is already loaded above)
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initIonGlobe);
+    } else {
+      initIonGlobe();
+    }
+  })();
+</script>
+
+<!-- Auth (must load before app.js) -->
+<script src="js/auth.js"></script>
+
+<!-- Alert engine -->
+<script src="js/notifier.js"></script>
+
+<!-- UI extras (library tabs, FAQ, guide, profile, drill, footer) -->
+<script src="js/ui-extras.js"></script>
+
+<!-- Main application (boot, data pipeline, UI wiring) -->
+<script src="js/app.js"></script>
+
+</body>
+</html>
